@@ -1,0 +1,56 @@
+{
+  "name": "logistics-shipping-days",
+  "version": "1.4.0",
+  "description": "물류 출고 소요일 분석 앱",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.logistics.shipping-days",
+    "productName": "출고소요일분석",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "출고소요일분석"
+    },
+    "extraResources": [
+      {
+        "from": "service-account.json",
+        "to": "service-account.json"
+      }
+    ],
+    "files": [
+      "**/*",
+      "!node_modules/electron-builder/**",
+      "!service-account.json"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^36.0.0",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "googleapis": "^171.4.0",
+    "xlsx": "^0.18.5"
+  }
+}

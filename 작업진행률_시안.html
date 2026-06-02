@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>작업 진행률 시안</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic', sans-serif; background: #f0f2f5; color: #333; }
+
+  .header {
+    background: linear-gradient(135deg, #1a73e8, #0d47a1);
+    color: white;
+    padding: 16px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 56px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .header h1 { font-size: 18px; font-weight: 700; }
+
+  .app-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
+
+  /* 사이드바 */
+  .sidebar {
+    width: 210px; min-width: 210px;
+    background: #1e2d3d;
+    padding: 16px 0;
+    position: fixed; top: 56px; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 90;
+  }
+  .nav-category { margin-bottom: 4px; }
+  .nav-cat-label {
+    padding: 10px 18px 8px;
+    font-size: 11px; font-weight: 700;
+    color: #7a9bc0; letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 18px 9px 28px;
+    font-size: 13px; color: #b0c4de;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.07); color: #e0eaf5; }
+  .nav-item.active { background: rgba(26,115,232,0.2); color: #60a5fa; border-left-color: #1a73e8; font-weight: 600; }
+
+  /* 메인 콘텐츠 */
+  .main-content { margin-left: 210px; flex: 1; padding: 20px; min-width: 0; }
+  .container { max-width: 1300px; margin: 0 auto; }
+
+  /* 페이지 헤더 */
+  .page-header {
+    background: white;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    display: flex; align-items: center; gap: 16px;
+  }
+  .page-header-icon { font-size: 32px; }
+  .page-header h2 { font-size: 18px; font-weight: 700; color: #1a73e8; }
+  .page-header p { font-size: 13px; color: #888; margin-top: 4px; }
+  .sheet-status {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: #34a853;
+    background: #e6f4ea;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #34a853; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* 탭 */
+  .tabs {
+    display: flex; gap: 4px;
+    background: white;
+    border-radius: 12px;
+    padding: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  .tab {
+    flex: 1; padding: 10px 16px;
+    border: none; background: none;
+    border-radius: 8px;
+    font-size: 13px; font-family: inherit;
+    cursor: pointer; font-weight: 600;
+    color: #888; transition: all 0.15s;
+  }
+  .tab:hover { background: #f0f2f5; color: #333; }
+  .tab.active { background: #1a73e8; color: white; }
+
+  /* 공통 카드 */
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #1a73e8;
+  }
+  .card.green { border-left-color: #34a853; }
+  .card.orange { border-left-color: #fa7b17; }
+  .card.red { border-left-color: #ea4335; }
+  .card.purple { border-left-color: #9334e6; }
+  .card-label { font-size: 12px; color: #666; margin-bottom: 6px; }
+  .card-value { font-size: 26px; font-weight: 700; color: #1a73e8; }
+  .card.green .card-value { color: #34a853; }
+  .card.orange .card-value { color: #fa7b17; }
+  .card.red .card-value { color: #ea4335; }
+  .card.purple .card-value { color: #9334e6; }
+  .card-sub { font-size: 11px; color: #999; margin-top: 4px; }
+
+  .summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px; margin-bottom: 20px;
+  }
+
+  /* 섹션 박스 */
+  .section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+  }
+  .section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+  }
+  .section-header h3 { font-size: 15px; font-weight: 700; color: #333; }
+
+  /* 날짜 필터 */
+  .date-filter {
+    display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+    background: #f8f9fa; border-radius: 10px; padding: 16px;
+    margin-bottom: 20px;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 6px; }
+  .filter-group label { font-size: 12px; color: #666; font-weight: 600; }
+  .filter-group select, .filter-group input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    min-width: 130px;
+  }
+  .btn {
+    padding: 9px 20px;
+    border: none; border-radius: 8px;
+    font-size: 13px; font-family: inherit;
+    cursor: pointer; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: #1a73e8; color: white; }
+  .btn-primary:hover { background: #0d47a1; }
+  .btn-secondary { background: #f1f3f4; color: #333; }
+  .btn-secondary:hover { background: #e0e0e0; }
+
+  /* 테이블 */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: #f8f9fa; }
+  th {
+    padding: 10px 12px;
+    text-align: left; font-weight: 600;
+    color: #555; border-bottom: 2px solid #e0e0e0;
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap; vertical-align: middle;
+  }
+  tr:hover td { background: #f8f9ff; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+  }
+  .badge-done { background: #e6f4ea; color: #1e7e34; }
+  .badge-pending { background: #fff3e0; color: #e65100; }
+  .badge-partial { background: #e8f0fe; color: #1a73e8; }
+  .badge-normal { background: #f3e8ff; color: #7b1fa2; }
+  .badge-wdn { background: #fce8e6; color: #c5221f; }
+
+  /* 진행률 바 */
+  .progress-bar-wrap {
+    width: 100%; background: #e0e0e0;
+    border-radius: 8px; height: 10px;
+    overflow: hidden; min-width: 80px;
+  }
+  .progress-bar-fill {
+    height: 100%; border-radius: 8px;
+    transition: width 0.4s;
+  }
+  .progress-high { background: #34a853; }
+  .progress-mid { background: #1a73e8; }
+  .progress-low { background: #fa7b17; }
+  .progress-none { background: #e0e0e0; }
+  .progress-text { font-size: 12px; font-weight: 700; margin-top: 3px; }
+
+  /* 수량 입력 */
+  .qty-input {
+    width: 80px;
+    padding: 5px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    text-align: right;
+  }
+  .qty-input:focus { border-color: #1a73e8; outline: none; }
+
+  /* 체크박스 */
+  .custom-check {
+    width: 18px; height: 18px;
+    accent-color: #34a853;
+    cursor: pointer;
+  }
+
+  /* 오늘 현황 카드 */
+  .today-event-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 14px;
+    transition: all 0.15s;
+  }
+  .today-event-card:hover { border-color: #1a73e8; background: #f8f9ff; }
+  .today-event-card.done { border-color: #34a853; background: #f0faf3; opacity: 0.75; }
+  .today-event-name { font-size: 13px; font-weight: 700; flex: 1; }
+  .today-event-meta { font-size: 12px; color: #888; margin-top: 2px; }
+  .today-progress-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+  .today-progress-label { font-size: 11px; color: #666; display: flex; justify-content: space-between; }
+
+  /* 탭 패널 */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* 새로고침 버튼 */
+  .refresh-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border: 1px solid #1a73e8;
+    border-radius: 8px;
+    background: white; color: #1a73e8;
+    font-size: 12px; font-family: inherit;
+    cursor: pointer; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .refresh-btn:hover { background: #e8f0fe; }
+
+  /* 그룹 행 */
+  .group-row td {
+    background: #eef2ff;
+    font-weight: 700;
+    color: #1a73e8;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span>📦</span>
+  <h1>Makestar 출고 분석</h1>
+</div>
+
+<div class="app-layout">
+  <!-- 사이드바 -->
+  <div class="sidebar">
+    <div class="nav-category">
+      <div class="nav-cat-label">출고 소요일 분석</div>
+      <div class="nav-item">📋 전체 출고 현황</div>
+      <div class="nav-item">📊 이벤트ID 평균소요일</div>
+      <div class="nav-item">📅 주차별 평균소요일</div>
+      <div class="nav-item">📦 주문전송 소요일</div>
+      <div class="nav-item">📆 월별 평균소요일</div>
+    </div>
+    <div class="nav-category">
+      <div class="nav-cat-label">출고 수량</div>
+      <div class="nav-item">📋 전체 수량 현황</div>
+      <div class="nav-item">📊 이벤트ID별 수량</div>
+      <div class="nav-item">📅 주차별 수량</div>
+      <div class="nav-item">📆 월별 수량</div>
+    </div>
+    <div class="nav-category">
+      <div class="nav-cat-label">박스 사용량</div>
+      <div class="nav-item">📦 이벤트 박스 수량</div>
+      <div class="nav-item">🗓 금일 박스 사용 수량</div>
+      <div class="nav-item">📅 주차별 박스 수량</div>
+      <div class="nav-item">📆 월별 박스 수량</div>
+    </div>
+    <div class="nav-category">
+      <div class="nav-cat-label">작업 진행률</div>
+      <div class="nav-item active">📅 날짜별 진행 현황</div>
+      <div class="nav-item">✅ 이벤트별 작업 체크</div>
+      <div class="nav-item">🏃 오늘 남은 작업</div>
+    </div>
+  </div>
+
+  <!-- 메인 콘텐츠 -->
+  <div class="main-content">
+    <div class="container">
+
+      <!-- 탭 1: 날짜별 진행 현황 -->
+      <div class="tab-panel active" id="panel-date">
+
+        <!-- 페이지 헤더 -->
+        <div class="page-header">
+          <div class="page-header-icon">📅</div>
+          <div>
+            <h2>날짜별 진행 현황</h2>
+            <p>구글시트에서 실시간으로 불러옵니다</p>
+          </div>
+          <div class="sheet-status">
+            <div class="dot"></div>
+            구글시트 연결됨
+          </div>
+        </div>
+
+        <!-- 날짜 필터 -->
+        <div class="date-filter">
+          <div class="filter-group">
+            <label>작업 예정일 선택</label>
+            <select>
+              <option>전체</option>
+              <option selected>4월6일</option>
+              <option>4월7일</option>
+              <option>4월8일</option>
+              <option>4월9일</option>
+              <option>4월10일</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>구분</label>
+            <select>
+              <option>전체</option>
+              <option>일반</option>
+              <option>웨이디엔</option>
+            </select>
+          </div>
+          <button class="btn btn-primary">🔍 조회</button>
+          <button class="refresh-btn">🔄 시트 새로고침</button>
+        </div>
+
+        <!-- 요약 카드 -->
+        <div class="summary-cards">
+          <div class="card">
+            <div class="card-label">전체 이벤트</div>
+            <div class="card-value">6</div>
+            <div class="card-sub">4월6일 기준</div>
+          </div>
+          <div class="card green">
+            <div class="card-label">완료</div>
+            <div class="card-value">5</div>
+            <div class="card-sub">83.3%</div>
+          </div>
+          <div class="card orange">
+            <div class="card-label">진행중 / 미완료</div>
+            <div class="card-value">1</div>
+            <div class="card-sub">16.7%</div>
+          </div>
+          <div class="card purple">
+            <div class="card-label">총 주문건</div>
+            <div class="card-value">612</div>
+            <div class="card-sub">건</div>
+          </div>
+          <div class="card" style="border-left-color:#0097a7">
+            <div class="card-label">총 앨범 수량</div>
+            <div class="card-value" style="color:#0097a7">4,642</div>
+            <div class="card-sub">개</div>
+          </div>
+        </div>
+
+        <!-- 테이블 -->
+        <div class="section">
+          <div class="section-header">
+            <h3>📋 4월6일 이벤트 목록</h3>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>구분</th>
+                  <th>이벤트 ID</th>
+                  <th>주문건</th>
+                  <th>앨범 수량</th>
+                  <th>작업여부 및 비고</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="badge badge-normal">일반</span></td>
+                  <td><b>P_10329_LAVIN_3</b></td>
+                  <td>26</td>
+                  <td>246</td>
+                  <td>4.6 완료</td>
+                  <td><span class="badge badge-done">✅ 완료</span></td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-normal">일반</span></td>
+                  <td><b>P_10350_H1-KEY_8</b></td>
+                  <td>82</td>
+                  <td>884</td>
+                  <td>4.6 완료</td>
+                  <td><span class="badge badge-done">✅ 완료</span></td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-normal">일반</span></td>
+                  <td><b>P_10211_MEOVV_3 *대만</b></td>
+                  <td>147</td>
+                  <td>1,422</td>
+                  <td>4.6 완료</td>
+                  <td><span class="badge badge-done">✅ 완료</span></td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-normal">일반</span></td>
+                  <td><b>P_9902_ALLDAY_PROJECT_21 *투샷회</b></td>
+                  <td>86</td>
+                  <td>643</td>
+                  <td>4.6 완료</td>
+                  <td><span class="badge badge-done">✅ 완료</span></td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-wdn">웨이디엔</span></td>
+                  <td><b>P_10413_IRENE_7</b></td>
+                  <td>254</td>
+                  <td>1,200</td>
+                  <td>4.6 완료</td>
+                  <td><span class="badge badge-done">✅ 완료</span></td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-normal">일반</span></td>
+                  <td><b>*P_10271_POW_10</b></td>
+                  <td>17</td>
+                  <td>247</td>
+                  <td>주문 미전송</td>
+                  <td><span class="badge badge-pending">⏳ 미완료</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <!-- /panel-date -->
+
+      <!-- 탭 2: 이벤트별 작업 체크 (숨김) -->
+      <div class="tab-panel" id="panel-check" style="display:block; margin-top:20px;">
+
+        <div class="page-header">
+          <div class="page-header-icon">✅</div>
+          <div>
+            <h2>이벤트별 작업 체크</h2>
+            <p>완료 여부 체크 및 작업 수량 직접 입력</p>
+          </div>
+          <div class="sheet-status">
+            <div class="dot"></div>
+            구글시트 연결됨
+          </div>
+        </div>
+
+        <div class="date-filter">
+          <div class="filter-group">
+            <label>날짜 선택</label>
+            <select>
+              <option>전체</option>
+              <option selected>4월8일</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>구분</label>
+            <select>
+              <option>전체</option>
+              <option>일반</option>
+              <option>웨이디엔</option>
+            </select>
+          </div>
+          <button class="btn btn-primary">🔍 조회</button>
+          <button class="refresh-btn">🔄 시트 새로고침</button>
+        </div>
+
+        <!-- 요약 카드 -->
+        <div class="summary-cards">
+          <div class="card">
+            <div class="card-label">주문건 달성률</div>
+            <div class="card-value">68%</div>
+            <div class="card-sub">1,024 / 1,507건</div>
+          </div>
+          <div class="card green">
+            <div class="card-label">앨범 수량 달성률</div>
+            <div class="card-value">71%</div>
+            <div class="card-sub">51,418 / 72,420개</div>
+          </div>
+          <div class="card orange">
+            <div class="card-label">완료 이벤트</div>
+            <div class="card-value">2 / 4</div>
+            <div class="card-sub">50%</div>
+          </div>
+        </div>
+
+        <!-- 이벤트 체크 테이블 -->
+        <div class="section">
+          <div class="section-header">
+            <h3>📋 이벤트 작업 현황 (4월8일)</h3>
+            <button class="btn btn-secondary" style="font-size:12px">💾 저장</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>완료</th>
+                  <th>구분</th>
+                  <th>이벤트 ID</th>
+                  <th>목표 주문건</th>
+                  <th>작업 주문건</th>
+                  <th>주문건 달성률</th>
+                  <th>목표 앨범수량</th>
+                  <th>작업 앨범수량</th>
+                  <th>앨범 달성률</th>
+                  <th>비고</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- 완료 행 -->
+                <tr style="opacity:0.7">
+                  <td><input type="checkbox" class="custom-check" checked></td>
+                  <td><span class="badge badge-normal">일반</span></td>
+                  <td><b>P_10255_ATEEZ_24</b></td>
+                  <td>1,396</td>
+                  <td><input type="number" class="qty-input" value="1396"></td>
+                  <td>
+                    <div class="progress-bar-wrap">
+                      <div class="progress-bar-fill progress-high" style="width:100%"></div>
+                    </div>
+                    <div class="progress-text" style="color:#34a853">100%</div>
+                  </td>
+                  <td>70,205</td>
+                  <td><input type="number" class="qty-input" value="70205"></td>
+                  <td>
+                    <div class="progress-bar-wrap">
+                      <div class="progress-bar-fill progress-high" style="width:100%"></div>
+                    </div>
+                    <div class="progress-text" style="color:#34a853">100%</div>
+                  </td>
+                  <td><input type="text" class="qty-input" style="width:100px" placeholder="메모"></td>
+                </tr>
+                <!-- 진행중 행 -->
+                <tr>
+                  <td><input type="checkbox" class="custom-check"></td>
+                  <td><span class="badge badge-normal">일반</span></td>
+                  <td><b>P_10345_YUNA_24</b></td>
+                  <td>92</td>
+                  <td><input type="number" class="qty-input" value="60"></td>
+                  <td>
+                    <div class="progress-bar-wrap">
+                      <div class="progress-bar-fill progress-mid" style="width:65%"></div>
+                    </div>
+                    <div class="progress-text" style="color:#1a73e8">65%</div>
+                  </td>
+                  <td>2,149</td>
+                  <td><input type="number" class="qty-input" value="1500"></td>
+                  <td>
+                    <div class="progress-bar-wrap">
+                      <div class="progress-bar-fill progress-mid" style="width:70%"></div>
+                    </div>
+                    <div class="progress-text" style="color:#1a73e8">70%</div>
+                  </td>
+                  <td><input type="text" class="qty-input" style="width:100px" placeholder="메모"></td>
+                </tr>
+                <!-- 미시작 행 -->
+                <tr>
+                  <td><input type="checkbox" class="custom-check"></td>
+                  <td><span class="badge badge-wdn">웨이디엔</span></td>
+                  <td><b>P_10402_KISS_OF_LIFE_1</b></td>
+                  <td>9</td>
+                  <td><input type="number" class="qty-input" value="0"></td>
+                  <td>
+                    <div class="progress-bar-wrap">
+                      <div class="progress-bar-fill progress-low" style="width:0%"></div>
+                    </div>
+                    <div class="progress-text" style="color:#fa7b17">0%</div>
+                  </td>
+                  <td>32</td>
+                  <td><input type="number" class="qty-input" value="0"></td>
+                  <td>
+                    <div class="progress-bar-wrap">
+                      <div class="progress-bar-fill progress-low" style="width:0%"></div>
+                    </div>
+                    <div class="progress-text" style="color:#fa7b17">0%</div>
+                  </td>
+                  <td><input type="text" class="qty-input" style="width:100px" placeholder="메모"></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="custom-check"></td>
+                  <td><span class="badge badge-wdn">웨이디엔</span></td>
+                  <td><b>P_10345_YUNA_24</b></td>
+                  <td>10</td>
+                  <td><input type="number" class="qty-input" value="0"></td>
+                  <td>
+                    <div class="progress-bar-wrap">
+                      <div class="progress-bar-fill progress-low" style="width:0%"></div>
+                    </div>
+                    <div class="progress-text" style="color:#fa7b17">0%</div>
+                  </td>
+                  <td>34</td>
+                  <td><input type="number" class="qty-input" value="0"></td>
+                  <td>
+                    <div class="progress-bar-wrap">
+                      <div class="progress-bar-fill progress-low" style="width:0%"></div>
+                    </div>
+                    <div class="progress-text" style="color:#fa7b17">0%</div>
+                  </td>
+                  <td><input type="text" class="qty-input" style="width:100px" placeholder="메모"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <!-- /panel-check -->
+
+      <!-- 탭 3: 오늘 남은 작업 (숨김) -->
+      <div class="tab-panel" id="panel-today" style="display:block; margin-top:20px;">
+
+        <div class="page-header">
+          <div class="page-header-icon">🏃</div>
+          <div>
+            <h2>오늘 남은 작업</h2>
+            <p>2026년 4월 8일 기준 · 미완료 이벤트만 표시</p>
+          </div>
+          <div class="sheet-status">
+            <div class="dot"></div>
+            구글시트 연결됨
+          </div>
+        </div>
+
+        <!-- 요약 카드 -->
+        <div class="summary-cards">
+          <div class="card red">
+            <div class="card-label">남은 이벤트</div>
+            <div class="card-value">3</div>
+            <div class="card-sub">오늘 기준 미완료</div>
+          </div>
+          <div class="card orange">
+            <div class="card-label">남은 주문건</div>
+            <div class="card-value">483</div>
+            <div class="card-sub">건</div>
+          </div>
+          <div class="card purple">
+            <div class="card-label">남은 앨범 수량</div>
+            <div class="card-value">20,420</div>
+            <div class="card-sub">개</div>
+          </div>
+          <div class="card green">
+            <div class="card-label">완료 이벤트</div>
+            <div class="card-value">1</div>
+            <div class="card-sub">오늘 기준</div>
+          </div>
+        </div>
+
+        <!-- 남은 작업 카드 리스트 -->
+        <div class="section">
+          <div class="section-header">
+            <h3>⚠️ 미완료 이벤트</h3>
+            <button class="refresh-btn">🔄 시트 새로고침</button>
+          </div>
+
+          <div class="today-event-card">
+            <div>
+              <span class="badge badge-normal">일반</span>
+            </div>
+            <div style="flex:1">
+              <div class="today-event-name">P_10345_YUNA_24</div>
+              <div class="today-event-meta">주문 미전송 · 4월8일 예정</div>
+            </div>
+            <div class="today-progress-wrap">
+              <div class="today-progress-label">
+                <span>주문건</span><span style="font-weight:700;color:#1a73e8">65%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill progress-mid" style="width:65%"></div>
+              </div>
+            </div>
+            <div class="today-progress-wrap">
+              <div class="today-progress-label">
+                <span>앨범수량</span><span style="font-weight:700;color:#1a73e8">70%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill progress-mid" style="width:70%"></div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:#888">92건 / 2,149개</div>
+          </div>
+
+          <div class="today-event-card">
+            <div>
+              <span class="badge badge-wdn">웨이디엔</span>
+            </div>
+            <div style="flex:1">
+              <div class="today-event-name">P_10402_KISS_OF_LIFE_1</div>
+              <div class="today-event-meta">포카 미발주 · 4월8일 예정</div>
+            </div>
+            <div class="today-progress-wrap">
+              <div class="today-progress-label">
+                <span>주문건</span><span style="font-weight:700;color:#fa7b17">0%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill progress-low" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="today-progress-wrap">
+              <div class="today-progress-label">
+                <span>앨범수량</span><span style="font-weight:700;color:#fa7b17">0%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill progress-low" style="width:0%"></div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:#888">9건 / 32개</div>
+          </div>
+
+          <div class="today-event-card">
+            <div>
+              <span class="badge badge-wdn">웨이디엔</span>
+            </div>
+            <div style="flex:1">
+              <div class="today-event-name">P_10345_YUNA_24</div>
+              <div class="today-event-meta">지시서, 송장 x · 4월8일 예정</div>
+            </div>
+            <div class="today-progress-wrap">
+              <div class="today-progress-label">
+                <span>주문건</span><span style="font-weight:700;color:#fa7b17">0%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill progress-low" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="today-progress-wrap">
+              <div class="today-progress-label">
+                <span>앨범수량</span><span style="font-weight:700;color:#fa7b17">0%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill progress-low" style="width:0%"></div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:#888">10건 / 34개</div>
+          </div>
+
+        </div>
+
+        <!-- 완료 이벤트 -->
+        <div class="section">
+          <div class="section-header">
+            <h3>✅ 오늘 완료된 이벤트</h3>
+          </div>
+          <div class="today-event-card done">
+            <div>
+              <span class="badge badge-normal">일반</span>
+            </div>
+            <div style="flex:1">
+              <div class="today-event-name">P_10255_ATEEZ_24</div>
+              <div class="today-event-meta">4.8 완료 · 4월8일</div>
+            </div>
+            <div class="today-progress-wrap">
+              <div class="today-progress-label">
+                <span>주문건</span><span style="font-weight:700;color:#34a853">100%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill progress-high" style="width:100%"></div>
+              </div>
+            </div>
+            <div class="today-progress-wrap">
+              <div class="today-progress-label">
+                <span>앨범수량</span><span style="font-weight:700;color:#34a853">100%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill progress-high" style="width:100%"></div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:#34a853;font-weight:700">✅ 완료</div>
+          </div>
+        </div>
+
+      </div>
+      <!-- /panel-today -->
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

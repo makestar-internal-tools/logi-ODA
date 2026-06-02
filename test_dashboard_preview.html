@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>대시보드 이벤트 표시 방식 비교</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f5f6fa; padding: 24px; }
+  h1 { font-size: 18px; color: #333; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 32px; }
+  .section-label {
+    display: inline-block;
+    font-size: 15px; font-weight: 700; color: white;
+    background: #1a73e8; border-radius: 8px;
+    padding: 6px 18px; margin-bottom: 16px;
+  }
+  .section { margin-bottom: 48px; }
+
+  /* 공통 테이블 */
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 8px 14px; text-align: left; font-size: 12px; color: #666; background: #f8f9fa; border-bottom: 2px solid #e0e0e0; }
+  th.c { text-align: center; }
+  td { padding: 9px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  td.c { text-align: center; }
+
+  .card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 16px; }
+  .card h3 { font-size: 14px; font-weight: 700; color: #555; margin-bottom: 14px; }
+
+  .badge-today { background: #1a73e8; color: white; border-radius: 4px; font-size: 10px; padding: 1px 6px; font-weight: 700; margin-left: 4px; }
+  .pct-bar-wrap { display:flex; align-items:center; gap:8px; }
+  .pct-bar-bg { flex:1; background:#f0f0f0; border-radius:4px; height:8px; overflow:hidden; min-width:60px; }
+  .pct-bar { height:100%; border-radius:4px; }
+
+  /* ===== 방안 A: 아코디언 ===== */
+  .accordion-row { cursor: pointer; transition: background 0.15s; }
+  .accordion-row:hover { background: #f0f7ff !important; }
+  .accordion-row td:first-child::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 6px;
+    font-size: 10px;
+    color: #aaa;
+    transition: transform 0.2s;
+  }
+  .accordion-row.open td:first-child::before { transform: rotate(90deg); color: #1a73e8; }
+  .event-detail-row { display: none; background: #f9fbff; }
+  .event-detail-row.open { display: table-row; }
+  .event-detail-inner { padding: 0 14px 12px 36px; }
+  .event-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: white; border: 1px solid #e0e0e0; border-radius: 8px;
+    padding: 5px 12px; font-size: 12px; margin: 3px 4px 3px 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .event-chip .eid { font-weight: 700; color: #1a73e8; }
+  .event-chip .type { color: #888; font-size: 11px; }
+  .event-chip .qty { color: #555; }
+  .event-chip .done-y { color: #34a853; font-size: 11px; font-weight: 700; }
+  .event-chip .done-n { color: #e53935; font-size: 11px; font-weight: 700; }
+
+  /* ===== 방안 B: 날짜별 카드 ===== */
+  .day-card {
+    background: white; border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .day-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .day-card-header .date-label { font-size: 14px; font-weight: 700; color: #333; }
+  .day-card-header .stats { display:flex; gap:12px; font-size:12px; color:#888; }
+  .day-card-header .stats b { color: #555; }
+  .day-card-header.today-header { background: #e8f0fe; }
+  .day-event-list { padding: 10px 20px 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .day-event-item {
+    display: flex; align-items: center; gap: 8px;
+    background: #f8f9fa; border-radius: 8px;
+    padding: 6px 14px; font-size: 12px; border-left: 3px solid #1a73e8;
+  }
+  .day-event-item.done { border-left-color: #34a853; opacity: 0.75; }
+  .day-event-item .eid { font-weight: 700; color: #1a73e8; }
+  .day-event-item.done .eid { color: #34a853; }
+  .day-event-item .sep { color: #ddd; }
+  .day-event-item .meta { color: #888; }
+  .day-event-item .done-badge { background: #34a853; color: white; border-radius: 4px; font-size: 10px; padding: 1px 5px; font-weight: 700; }
+  .day-event-item .pend-badge { background: #e53935; color: white; border-radius: 4px; font-size: 10px; padding: 1px 5px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>📊 대시보드 이벤트 표시 방식 비교</h1>
+<p class="subtitle">방안 A (아코디언) vs 방안 B (날짜별 카드) — 날짜를 클릭해보세요 (방안 A)</p>
+
+<!-- 샘플 데이터 -->
+<script>
+const sampleData = [
+  { date: '4월28일', eid: 'IVE2026', type: '일반', orders: 1200, qty: 1400, done: true },
+  { date: '4월28일', eid: 'AESPA001', type: '웨이디엔', orders: 830, qty: 950, done: true },
+  { date: '4월28일', eid: 'NCT2026A', type: '일반', orders: 420, qty: 500, done: false },
+  { date: '4월29일', eid: 'STAYC01', type: '일반', orders: 640, qty: 720, done: true },
+  { date: '4월29일', eid: 'RIIZE02', type: '웨이디엔', orders: 310, qty: 360, done: false },
+  { date: '4월30일', eid: 'LESSERAFIM', type: '일반', orders: 980, qty: 1100, done: false },
+  { date: '4월30일', eid: 'NEWJEANS3', type: '일반', orders: 750, qty: 850, done: false },
+  { date: '4월30일', eid: 'TXT2026B', type: '웨이디엔', orders: 290, qty: 330, done: false },
+];
+const todayLabel = '4월30일';
+const dates = [...new Set(sampleData.map(r => r.date))];
+
+function color(pct) {
+  return pct === 100 ? '#34a853' : pct >= 50 ? '#f9ab00' : '#e53935';
+}
+</script>
+
+<!-- ===== 방안 A ===== -->
+<div class="section">
+  <div class="section-label">방안 A — 날짜 클릭 시 이벤트 펼쳐보기 (아코디언)</div>
+  <div class="card">
+    <h3>📅 이번 주 날짜별 현황</h3>
+    <table id="tableA">
+      <thead><tr>
+        <th>날짜</th>
+        <th class="c">작업 수</th>
+        <th class="c">주문건</th>
+        <th class="c">앨범 수량</th>
+        <th class="c">완료</th>
+        <th class="c">진행률</th>
+      </tr></thead>
+      <tbody id="tbodyA"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 방안 B ===== -->
+<div class="section">
+  <div class="section-label">방안 B — 날짜별 카드에 이벤트 항상 표시</div>
+  <div id="sectionB"></div>
+</div>
+
+<script>
+// ===== 방안 A 렌더 =====
+const tbodyA = document.getElementById('tbodyA');
+dates.forEach((date, i) => {
+  const rows = sampleData.filter(r => r.date === date);
+  const total = rows.length;
+  const done = rows.filter(r => r.done).length;
+  const orders = rows.reduce((s, r) => s + r.orders, 0);
+  const qty = rows.reduce((s, r) => s + r.qty, 0);
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const isToday = date === todayLabel;
+  const c = color(pct);
+
+  // 요약 행
+  const tr = document.createElement('tr');
+  tr.className = 'accordion-row' + (isToday ? '' : '');
+  tr.style.cssText = isToday ? 'background:#e8f0fe;font-weight:600;' : '';
+  tr.innerHTML = `
+    <td>${date}${isToday ? '<span class="badge-today">오늘</span>' : ''}</td>
+    <td class="c">${total}건</td>
+    <td class="c">${orders.toLocaleString()}</td>
+    <td class="c">${qty.toLocaleString()}</td>
+    <td class="c">${done} / ${total}</td>
+    <td class="c">
+      <div class="pct-bar-wrap">
+        <div class="pct-bar-bg"><div class="pct-bar" style="background:${c};width:${pct}%;"></div></div>
+        <span style="font-size:12px;font-weight:700;color:${c};min-width:32px;">${pct}%</span>
+      </div>
+    </td>
+  `;
+
+  // 상세 행
+  const detailTr = document.createElement('tr');
+  detailTr.className = 'event-detail-row';
+  const chips = rows.map(r => `
+    <span class="event-chip">
+      <span class="eid">${r.eid}</span>
+      <span class="type">${r.type}</span>
+      <span class="qty">${r.qty.toLocaleString()}장</span>
+      ${r.done ? '<span class="done-y">✔ 완료</span>' : '<span class="done-n">진행중</span>'}
+    </span>
+  `).join('');
+  detailTr.innerHTML = `<td colspan="6"><div class="event-detail-inner">${chips}</div></td>`;
+
+  tr.addEventListener('click', () => {
+    tr.classList.toggle('open');
+    detailTr.classList.toggle('open');
+  });
+
+  tbodyA.appendChild(tr);
+  tbodyA.appendChild(detailTr);
+});
+
+// ===== 방안 B 렌더 =====
+const sectionB = document.getElementById('sectionB');
+dates.forEach(date => {
+  const rows = sampleData.filter(r => r.date === date);
+  const total = rows.length;
+  const done = rows.filter(r => r.done).length;
+  const orders = rows.reduce((s, r) => s + r.orders, 0);
+  const qty = rows.reduce((s, r) => s + r.qty, 0);
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const isToday = date === todayLabel;
+  const c = color(pct);
+
+  const items = rows.map(r => `
+    <div class="day-event-item ${r.done ? 'done' : ''}">
+      <span class="eid">${r.eid}</span>
+      <span class="sep">|</span>
+      <span class="meta">${r.type} · ${r.qty.toLocaleString()}장 · ${r.orders.toLocaleString()}건</span>
+      ${r.done ? '<span class="done-badge">완료</span>' : '<span class="pend-badge">진행중</span>'}
+    </div>
+  `).join('');
+
+  const card = document.createElement('div');
+  card.className = 'day-card';
+  card.innerHTML = `
+    <div class="day-card-header ${isToday ? 'today-header' : ''}">
+      <div class="date-label">${date}${isToday ? ' <span class="badge-today">오늘</span>' : ''}</div>
+      <div class="stats">
+        <span>작업 <b>${total}건</b></span>
+        <span>주문 <b>${orders.toLocaleString()}</b></span>
+        <span>수량 <b>${qty.toLocaleString()}</b></span>
+        <span style="color:${c};font-weight:700;">${pct}%</span>
+      </div>
+    </div>
+    <div class="day-event-list">${items}</div>
+  `;
+  sectionB.appendChild(card);
+});
+</script>
+
+</body>
+</html>
