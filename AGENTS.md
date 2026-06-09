@@ -11,6 +11,13 @@
 - Windows 빌드: `npm run build`.
 - 현재 테스트/린트 스크립트는 없습니다.
 
+## 배포/실행 방식
+
+- Electron 기반 Windows 데스크톱 앱입니다. 개발자는 `npm start`로 Electron 창을 띄웁니다.
+- 배포 빌드는 `npm run build`가 `electron-builder --win --x64`를 실행하며, `package.json` 기준 NSIS 설치본과 zip 배포를 전제로 합니다.
+- 비개발자는 설치된 EXE 또는 `출고소요일분석 실행.bat` 같은 실행 보조 파일로 앱을 실행하는 형태입니다.
+- `service-account.json`, Google Spreadsheet ID/범위, CDN 의존성, localStorage 상태가 배포 동작에 영향을 줍니다. 서비스 계정 파일과 배포 산출물은 소스와 분리합니다.
+
 ## 주요 파일
 
 - `main.js` — Electron 시작, Google 인증/읽기/쓰기/업데이트 확인 IPC.
